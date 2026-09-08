@@ -1,6 +1,6 @@
-# CUET Shared Ride — Full Stack App
+# CUET Shared Ride 
 
-A working prototype: React frontend + Node/Express backend + AI-powered ride
+A working prototype: React frontend + Node/Express backend + AI-integrated ride
 matching (Google Gemini API, with an automatic rule-based fallback if you
 don't have a key yet).
 
@@ -43,7 +43,7 @@ Open `server/.env` and optionally paste in a Gemini API key:
 ```
 GEMINI_API_KEY=your_key_here
 ```
-Get a free key at https://aistudio.google.com/app/apikey. **This step is
+If you don't have a Gemini API Key, then you get one at https://aistudio.google.com/app/apikey for free. **This step is
 optional** — if you leave it blank, ride matching still works using a
 simple rule (same route + close request time), so you can demo the app
 immediately without waiting on an API key.
@@ -71,7 +71,7 @@ npm run dev
 Click the `http://localhost:5173` link shown in the terminal. Narrow your
 browser window (or use dev tools' device mode) to see the mobile layout.
 
-## 5. Try it out
+## 5. Try it out 
 
 1. Welcome screen → **Get Started**
 2. Choose **Student** → **Create an account** → sign up with an email like
