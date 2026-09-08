@@ -4,9 +4,10 @@ import { useAuth } from '../context/AuthContext.jsx'
 import Field, { inputClass } from '../components/Field.jsx'
 
 const CUET_EMAIL = /^u\d{7}@student\.cuet\.ac\.bd$/i
+const STUDENT_ID = /^\d{7}$/
 
 export default function StudentSignup() {
-  const [form, setForm] = useState({ name: '', email: '', hall: '', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', studentId: '', gender: '', hall: '', password: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const { studentSignup } = useAuth()
@@ -23,12 +24,16 @@ export default function StudentSignup() {
     if (!CUET_EMAIL.test(form.email)) {
       return setError('Use your CUET student email, e.g. u2204064@student.cuet.ac.bd')
     }
+    if (!STUDENT_ID.test(form.studentId)) return setError('Enter your 7-digit student ID, e.g. 2204064')
+    if (!form.gender) return setError('Select your gender.')
     if (form.password.length < 6) return setError('Password must be at least 6 characters.')
 
     setBusy(true)
     const res = await studentSignup({
       name: form.name,
       email: form.email.toLowerCase(),
+      studentId: form.studentId,
+      gender: form.gender,
       hall: form.hall,
       password: form.password,
     })
@@ -49,7 +54,7 @@ export default function StudentSignup() {
         <Field label="Full Name">
           <input
             className={inputClass}
-            placeholder="XXXXXXXXXX"
+            placeholder="i.e. John Doe"
             value={form.name}
             onChange={(e) => update('name', e.target.value)}
           />
@@ -62,6 +67,28 @@ export default function StudentSignup() {
             value={form.email}
             onChange={(e) => update('email', e.target.value)}
           />
+        </Field>
+        <Field label="Student ID">
+          <input
+            className={inputClass}
+            inputMode="numeric"
+            placeholder="i.e. 2204001"
+            value={form.studentId}
+            onChange={(e) => update('studentId', e.target.value)}
+          />
+        </Field>
+        <Field label="Gender">
+          <select
+            className={inputClass}
+            required
+            value={form.gender}
+            onChange={(e) => update('gender', e.target.value)}
+          >
+            <option value="">Select gender</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="unknown">Prefer not to say</option>
+          </select>
         </Field>
         <Field label="Hall of Residence">
           <select
