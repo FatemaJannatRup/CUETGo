@@ -75,7 +75,7 @@ browser window (or use dev tools' device mode) to see the mobile layout.
 
 1. Welcome screen → **Get Started**
 2. Choose **Student** → **Create an account** → sign up with an email like
-   `u2204049@student.cuet.ac.bd`
+   `uXXXXXXX@student.cuet.ac.bd`
 3. On the student home screen, pick a route and tap **Find a Ride** — this
    calls the backend, which asks Gemini (or the fallback rule) to look for
    matching riders
