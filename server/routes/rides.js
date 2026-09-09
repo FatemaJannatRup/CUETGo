@@ -28,8 +28,8 @@ router.get('/routes', (req, res) => {
   res.json({ locations: LOCATIONS, halls: HALLS })
 })
 
-router.get('/open', requireAuth('student'), (req, res) => {
-  const db = readDb()
+router.get('/open', requireAuth('student'), async (req, res) => {
+  const db = await readDb()
   const rides = db.rides
     .filter((ride) => ride.status === 'pending' && ride.studentId !== req.user.id &&
       !(ride.participantIds || []).includes(req.user.id) &&
@@ -45,8 +45,8 @@ router.get('/open', requireAuth('student'), (req, res) => {
   res.json({ rides })
 })
 
-router.post('/:id/join', requireAuth('student'), (req, res) => {
-  const db = readDb()
+router.post('/:id/join', requireAuth('student'), async (req, res) => {
+  const db = await readDb()
   const ride = db.rides.find((item) => item.id === req.params.id)
   if (!ride) return res.status(404).json({ message: 'Ride not found.' })
   if (ride.studentId === req.user.id || (ride.participantIds || []).includes(req.user.id)) {
@@ -58,7 +58,7 @@ router.post('/:id/join', requireAuth('student'), (req, res) => {
   }
   ride.participantIds = [...(ride.participantIds || []), req.user.id]
   ride.passengerCount = (ride.passengerCount || ride.seats || 1) + 1
-  writeDb(db)
+  await writeDb(db)
   res.json({ ride })
 })
 
@@ -70,7 +70,7 @@ router.post('/request', requireAuth('student'), async (req, res) => {
   if (new Date(requestedTime).getTime() <= Date.now()) return res.status(400).json({ message: 'That pickup time has already passed. Choose a time at least a few minutes from now.' })
   if (![1, 2].includes(Number(seats))) return res.status(400).json({ message: 'A rickshaw has only 1 or 2 seats.' })
 
-  const db = readDb()
+  const db = await readDb()
   const ride = {
     id: crypto.randomUUID(),
     studentId: req.user.id,
@@ -89,12 +89,12 @@ router.post('/request', requireAuth('student'), async (req, res) => {
   const others = db.rides.filter((r) => r.status === 'pending' && r.id !== ride.id && r.from === from && r.to === to && Math.abs(new Date(r.requestedTime || r.createdAt) - new Date(ride.requestedTime)) < 30 * 60 * 1000 && (r.passengerCount || r.seats || 1) + ride.passengerCount <= 2)
   const matches = await findMatches(ride, others)
   // Matching may await a remote API; reload so concurrent bookings and joins survive.
-  const latest = readDb()
+  const latest = await readDb()
   ride.matchedRideIds = matches.map((m) => m.rideId).filter((id) =>
     latest.rides.some((r) => r.id === id && r.status === 'pending' &&
       (r.passengerCount || r.seats || 1) + ride.passengerCount <= 2))
   latest.rides.push(ride)
-  writeDb(latest)
+  await writeDb(latest)
 
   const matchedRiders = ride.matchedRideIds
     .map((id) => db.rides.find((r) => r.id === id))
@@ -104,16 +104,16 @@ router.post('/request', requireAuth('student'), async (req, res) => {
   res.json({ ride, matches: matchedRiders })
 })
 
-router.get('/mine', requireAuth('student'), (req, res) => {
-  const db = readDb()
+router.get('/mine', requireAuth('student'), async (req, res) => {
+  const db = await readDb()
   const mine = db.rides
     .filter((r) => r.studentId === req.user.id || (r.participantIds || []).includes(req.user.id))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   res.json({ rides: mine })
 })
 
-router.get('/pending', requireAuth('driver'), (req, res) => {
-  const db = readDb()
+router.get('/pending', requireAuth('driver'), async (req, res) => {
+  const db = await readDb()
   const pending = db.rides
     .filter((r) => r.status === 'pending')
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
@@ -141,12 +141,12 @@ router.get('/pending', requireAuth('driver'), (req, res) => {
   res.json({ groups: Object.values(grouped) })
 })
 
-router.post('/accept', requireAuth('driver'), (req, res) => {
+router.post('/accept', requireAuth('driver'), async (req, res) => {
   const { rideIds } = req.body || {}
   if (!Array.isArray(rideIds) || rideIds.length === 0) {
     return res.status(400).json({ message: 'No ride selected.' })
   }
-  const db = readDb()
+  const db = await readDb()
   let count = 0
   let seats = 0
   for (const ride of db.rides) {
@@ -161,23 +161,23 @@ router.post('/accept', requireAuth('driver'), (req, res) => {
     }
   }
   if (!count) return res.status(409).json({ message: 'This request is no longer available or exceeds the 2-seat capacity.' })
-  writeDb(db)
+  await writeDb(db)
   res.json({ accepted: count })
 })
 
-router.post('/:id/complete', requireAuth('driver'), (req, res) => {
-  const db = readDb()
+router.post('/:id/complete', requireAuth('driver'), async (req, res) => {
+  const db = await readDb()
   const ride = db.rides.find((item) => item.id === req.params.id && item.driverId === req.user.id)
   if (!ride) return res.status(404).json({ message: 'Ride not found.' })
   ride.status = 'completed'
   ride.completedAt = new Date().toISOString()
-  writeDb(db)
+  await writeDb(db)
   res.json({ ride })
 })
 
 // Driver: rides they have accepted
-router.get('/mine-driver', requireAuth('driver'), (req, res) => {
-  const db = readDb()
+router.get('/mine-driver', requireAuth('driver'), async (req, res) => {
+  const db = await readDb()
   const mine = db.rides
     .filter((r) => r.driverId === req.user.id)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))

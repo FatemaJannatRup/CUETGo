@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: dark;
+  --bg-1: #040d1b;
+  --bg-2: #0b1d32;
+  --bg-3: #153a66;
+  --panel: rgba(8, 20, 34, 0.96);
+  --panel-soft: rgba(14, 31, 51, 0.9);
+  --line: rgba(134, 176, 255, 0.28);
+  --text: #111827;
+  --muted: #4b5d78;
+  --brand: #0d4c9d;
+  --brand-strong: #0b3d86;
+  --card: #ffffff;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -9,13 +24,41 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: #E9E1F0;
-  font-family: "Inter", sans-serif;
-  color: #3A3145;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top, rgba(30, 106, 214, 0.38), transparent 30%),
+    linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 32%, #030b15 100%);
+  font-family: "Calibri", "Segoe UI", sans-serif;
+  color: #111827;
+}
+
+body {
+  letter-spacing: 0.01em;
+}
+
+#root,
+.phone-screen,
+.screen-scroll,
+.screen-scroll * {
+  color: #111827 !important;
+}
+
+button, input, select, textarea {
+  font-family: "Calibri", "Segoe UI", sans-serif;
+  transition: all 0.18s ease;
+}
+
+button {
+  cursor: pointer;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(17, 24, 39, 0.6) !important;
 }
 
 .bn {
-  font-family: "Noto Sans Bengali", "Inter", sans-serif;
+  font-family: "Calibri", "Segoe UI", sans-serif;
 }
 
 .phone-shell {
@@ -24,21 +67,22 @@ html, body {
   align-items: center;
   justify-content: center;
   padding: 24px;
+  background: transparent;
 }
 
 .phone-screen {
   width: 100%;
-  max-width: 420px;
+  max-width: 430px;
   height: 860px;
   max-height: 92vh;
-  background: #FBF6EF;
-  border-radius: 2.5rem;
-  box-shadow: 0 30px 60px -20px rgba(90, 63, 126, 0.35);
+  background: linear-gradient(180deg, rgba(12, 32, 52, 0.97), rgba(7, 16, 28, 0.98));
+  border-radius: 2.25rem;
+  box-shadow: 0 35px 90px -25px rgba(1, 12, 25, 0.9);
   overflow: hidden;
   position: relative;
   display: flex;
   flex-direction: column;
-  border: 8px solid #ffffff;
+  border: 1px solid var(--line);
 }
 
 .screen-scroll {
@@ -49,6 +93,58 @@ html, body {
 }
 .screen-scroll::-webkit-scrollbar {
   display: none;
+}
+
+input, select, textarea {
+  color: #111827 !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid rgba(21, 61, 110, 0.18);
+  box-shadow: inset 0 1px 2px rgba(9, 23, 43, 0.05);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(17, 24, 39, 0.45) !important;
+}
+
+button[class*="bg-lilac-500"],
+button[class*="bg-lilac-600"],
+button[type="submit"],
+button.primary-btn {
+  background: linear-gradient(135deg, #1f79e6 0%, #0f4ea6 100%);
+  color: white !important;
+  border: 1px solid rgba(178, 216, 255, 0.45);
+  box-shadow: 0 12px 26px -12px rgba(19, 66, 146, 0.9), inset 0 1px 0 rgba(255,255,255,0.35);
+}
+
+button[class*="bg-lilac-500"]:hover,
+button[class*="bg-lilac-600"]:hover,
+button[type="submit"]:hover,
+button.primary-btn:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+button:not([class*="bg-lilac-"]):not([type="submit"]):not(.plain) {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(164, 198, 255, 0.24);
+  color: #eaf6ff;
+}
+
+.text-ink {
+  color: #101827 !important;
+}
+
+.text-ink\/60 {
+  color: rgba(16, 24, 39, 0.6) !important;
+}
+
+.bg-cream {
+  background: linear-gradient(180deg, rgba(7, 22, 35, 0.96), rgba(7, 15, 26, 0.98));
+}
+
+.bg-white {
+  background: rgba(255, 255, 255, 0.98) !important;
 }
 
 @media (max-width: 480px) {

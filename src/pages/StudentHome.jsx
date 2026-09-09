@@ -22,9 +22,9 @@ function publicGenderLabel(g) {
 }
 
 export default function StudentHome() {
-  const { user, logout } = useAuth()
+  const { user, logout, updateProfile } = useAuth()
   const [locations, setLocations] = useState([])
-  const [form, setForm] = useState({ from: user?.hall || '', to: '', requestedTime: '', seats: 1 })
+  const [form, setForm] = useState({ from: user?.hall || '', to: '', requestedTime: '', seats: 1, coPassengerName: '', coPassengerPhone: '', notes: '' })
   const [rides, setRides] = useState([])
   const [activeRide, setActiveRide] = useState(null)
   const [matches, setMatches] = useState([])
@@ -38,26 +38,52 @@ export default function StudentHome() {
   const [editingProfile, setEditingProfile] = useState(false)
   const [profileForm, setProfileForm] = useState({ name: '', hall: '', gender: '' })
   const [profileSaving, setProfileSaving] = useState(false)
-  // Local-only override so the screen reflects a save immediately.
-  // This does NOT persist past a refresh until a real api.updateProfile()
-  // call exists and AuthContext's `user` is updated from its response.
+  const [wallet, setWallet] = useState(Number(user?.wallet || 0))
+  const [walletInput, setWalletInput] = useState('100')
+  const [walletBusy, setWalletBusy] = useState(false)
   const [profileOverride, setProfileOverride] = useState({})
   const displayUser = user ? { ...user, ...profileOverride } : user
 
   useEffect(() => {
-    if (user) setProfileForm({ name: user.name || '', hall: user.hall || '', gender: user.gender || '' })
+    if (user) {
+      setProfileForm({ name: user.name || '', hall: user.hall || '', gender: user.gender || '' })
+      setWallet(Number(user.wallet || 0))
+    }
   }, [user])
 
   async function saveProfile(event) {
     event.preventDefault()
     setProfileSaving(true)
     try {
-      // Placeholder for the real call, e.g. await api.updateProfile(profileForm)
-      // then update AuthContext's user from the response so this survives a refresh.
-      setProfileOverride({ name: profileForm.name, hall: profileForm.hall, gender: profileForm.gender })
+      const nextUser = await api.updateProfile(profileForm)
+      updateProfile(nextUser.user)
+      setProfileOverride({ name: nextUser.user.name, hall: nextUser.user.hall, gender: nextUser.user.gender })
       setEditingProfile(false)
+      setSyncError('')
+    } catch (e) {
+      setSyncError(e.message)
     } finally {
       setProfileSaving(false)
+    }
+  }
+
+  async function topUpWallet() {
+    const amount = Number(walletInput)
+    if (!amount || amount <= 0) {
+      setSyncError('Enter a valid wallet amount.')
+      return
+    }
+    setWalletBusy(true)
+    try {
+      const result = await api.topUpWallet(amount)
+      setWallet(Number(result.wallet || 0))
+      setWalletInput('100')
+      setSyncError('')
+      updateProfile({ ...user, wallet: Number(result.wallet || 0) })
+    } catch (e) {
+      setSyncError(e.message)
+    } finally {
+      setWalletBusy(false)
     }
   }
 
@@ -89,10 +115,18 @@ export default function StudentHome() {
       if (Number.isNaN(pickupTime.getTime()) || pickupTime.getTime() <= Date.now()) {
         throw new Error('Choose a pickup time at least a few minutes from now.')
       }
-      const result = await api.requestRide({ ...form, requestedTime: pickupTime.toISOString() })
+      const payload = {
+        ...form,
+        requestedTime: pickupTime.toISOString(),
+        coPassengerName: form.coPassengerName?.trim(),
+        coPassengerPhone: form.coPassengerPhone?.trim(),
+        notes: form.notes?.trim(),
+      }
+      const result = await api.requestRide(payload)
       setActiveRide(result.ride)
       setMatches(result.matches)
       refresh()
+      setForm({ from: user?.hall || '', to: '', requestedTime: '', seats: 1, coPassengerName: '', coPassengerPhone: '', notes: '' })
       setHomeView('menu')
     } catch (e) {
       setError(e.message)
@@ -208,6 +242,19 @@ export default function StudentHome() {
                 <option value="2">2 seats</option>
               </select>
             </label>
+            {Number(form.seats) === 2 && (
+              <>
+                <label className="text-xs text-ink/60">Co-passenger name
+                  <input className="w-full bg-lilac-50 border border-lilac-200 rounded-xl px-4 py-3 text-ink mt-1" value={form.coPassengerName} onChange={(e) => setForm({ ...form, coPassengerName: e.target.value })} placeholder="Name of second rider" />
+                </label>
+                <label className="text-xs text-ink/60">Co-passenger contact
+                  <input className="w-full bg-lilac-50 border border-lilac-200 rounded-xl px-4 py-3 text-ink mt-1" value={form.coPassengerPhone} onChange={(e) => setForm({ ...form, coPassengerPhone: e.target.value })} placeholder="Phone number" />
+                </label>
+              </>
+            )}
+            <label className="text-xs text-ink/60">Trip note (optional)
+              <textarea className="w-full bg-lilac-50 border border-lilac-200 rounded-xl px-4 py-3 text-ink mt-1" rows="2" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Pickup detail or extra note" />
+            </label>
             {error && <p className="text-rose-500 text-sm">{error}</p>}
             <button disabled={busy} className="bg-lilac-500 disabled:opacity-60 text-white font-medium py-3 rounded-full">
               {busy ? 'Finding a driver...' : 'Book rickshaw'}
@@ -284,6 +331,16 @@ export default function StudentHome() {
               <div><p className="text-xs text-ink/50">Student ID</p><p className="text-sm text-ink mt-0.5">{user?.studentId || 'Not set'}</p></div>
               <div><p className="text-xs text-ink/50">Gender</p><p className="text-sm text-ink mt-0.5">{genderLabel(displayUser?.gender)}</p></div>
               <div className="col-span-2"><p className="text-xs text-ink/50">Residence</p><p className="text-sm text-ink mt-0.5">{displayUser?.hall || 'Hall not set'}</p></div>
+            </div>
+            <div className="mt-5 rounded-xl bg-lilac-50 p-3">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-ink/60">Wallet balance</span>
+                <span className="text-sm font-semibold text-ink">৳{wallet}</span>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <input type="number" min="10" step="10" value={walletInput} onChange={(e) => setWalletInput(e.target.value)} className="w-full bg-white border border-lilac-200 rounded-xl px-3 py-2.5 text-ink" placeholder="Top-up amount" />
+                <button onClick={topUpWallet} disabled={walletBusy} className="bg-lilac-500 text-white font-medium px-4 rounded-xl">{walletBusy ? '...' : 'Top up'}</button>
+              </div>
             </div>
           </> : <form onSubmit={saveProfile} className="flex flex-col gap-3">
             <label className="text-xs text-ink/60">Name

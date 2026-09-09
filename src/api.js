@@ -1,7 +1,8 @@
 const API_ORIGIN = (import.meta.env.VITE_API_URL?.trim() || (import.meta.env.DEV ? 'http://localhost:5000' : '')).replace(/\/+$/, '')
 const API_BASE = `${API_ORIGIN}/api`
+
 function getToken() {
-  return sessionStorage.getItem('csr_token')
+  return localStorage.getItem('csr_token') || sessionStorage.getItem('csr_token')
 }
 
 async function request(path, { method = 'GET', body, auth = false } = {}) {
@@ -10,15 +11,18 @@ async function request(path, { method = 'GET', body, auth = false } = {}) {
     const token = getToken()
     if (token) headers.Authorization = `Bearer ${token}`
   }
+
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   })
+
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
     throw new Error(data.message || 'Something went wrong. Please try again.')
   }
+
   return data
 }
 
@@ -28,6 +32,9 @@ export const api = {
   driverSignup: (payload) => request('/auth/driver/signup', { method: 'POST', body: payload }),
   driverLogin: (payload) => request('/auth/driver/login', { method: 'POST', body: payload }),
   me: () => request('/auth/me', { auth: true }),
+  updateProfile: (payload) => request('/auth/profile', { method: 'PATCH', body: payload, auth: true }),
+  wallet: () => request('/auth/wallet', { auth: true }),
+  topUpWallet: (amount) => request('/auth/wallet/topup', { method: 'POST', body: { amount }, auth: true }),
 
   routes: () => request('/rides/routes'),
   requestRide: (payload) => request('/rides/request', { method: 'POST', body: payload, auth: true }),
