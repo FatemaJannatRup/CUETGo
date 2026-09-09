@@ -54,7 +54,7 @@ export default function StudentSignup() {
         <Field label="Full Name">
           <input
             className={inputClass}
-            placeholder="i.e. John Doe"
+            placeholder="XXXXXXXXXX"
             value={form.name}
             onChange={(e) => update('name', e.target.value)}
           />
@@ -72,7 +72,7 @@ export default function StudentSignup() {
           <input
             className={inputClass}
             inputMode="numeric"
-            placeholder="i.e. 2204001"
+            placeholder="2204064"
             value={form.studentId}
             onChange={(e) => update('studentId', e.target.value)}
           />
