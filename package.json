@@ -4,11 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"npm --prefix server run dev\" \"vite --host 0.0.0.0\"",
-    "dev:client": "vite --host 0.0.0.0",
+    "dev": "concurrently -k \"npm --prefix server run dev\" \"vite\"",
+    "dev:client": "vite",
     "dev:server": "npm --prefix server run dev",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
