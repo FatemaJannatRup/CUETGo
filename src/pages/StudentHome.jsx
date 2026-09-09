@@ -14,6 +14,21 @@ const MOCK_OPEN_RIDES = [
 
 const HALLS = ['Muktijoddha Hall', 'Shahid Mohammad Shah Hall', 'Dr. Qudrat-E-Khuda Hall', 'Kabi Kazi Nazrul Islam Hall', 'Shaheed Tareq Huda Hall', 'Shaheed Abu Sayed Hall', 'Sufia Kamal Hall', 'Begum Shamsunnahar Khan Hall', 'Tapashi Rabeya Hall']
 
+function genderLabel(g) {
+  if (g === 'female') return 'Female'
+  if (g === 'male') return 'Male'
+  if (g === 'unknown') return 'Prefer not to say'
+  return 'Not set'
+}
+
+// (ride slots, matches, etc.) so a "prefer not to say" choice reads
+// as Unknown to others, never their own friendlier label.
+function publicGenderLabel(g) {
+  if (g === 'female') return 'Female'
+  if (g === 'male') return 'Male'
+  return 'Unknown'
+}
+
 export default function StudentHome() {
   const { user, logout } = useAuth()
   const [locations, setLocations] = useState([])
@@ -28,7 +43,7 @@ export default function StudentHome() {
   const [openRides, setOpenRides] = useState(MOCK_OPEN_RIDES)
   const [joiningId, setJoiningId] = useState(null)
   const [editingProfile, setEditingProfile] = useState(false)
-  const [profileForm, setProfileForm] = useState({ name: '', hall: '' })
+  const [profileForm, setProfileForm] = useState({ name: '', hall: '', gender: '' })
   const [profileSaving, setProfileSaving] = useState(false)
   // Local-only override so the screen reflects a save immediately.
   // This does NOT persist past a refresh until a real api.updateProfile()
@@ -37,7 +52,7 @@ export default function StudentHome() {
   const displayUser = user ? { ...user, ...profileOverride } : user
 
   useEffect(() => {
-    if (user) setProfileForm({ name: user.name || '', hall: user.hall || '' })
+    if (user) setProfileForm({ name: user.name || '', hall: user.hall || '', gender: user.gender || '' })
   }, [user])
 
   async function saveProfile(event) {
@@ -46,7 +61,7 @@ export default function StudentHome() {
     try {
       // Placeholder for the real call, e.g. await api.updateProfile(profileForm)
       // then update AuthContext's user from the response so this survives a refresh.
-      setProfileOverride({ name: profileForm.name, hall: profileForm.hall })
+      setProfileOverride({ name: profileForm.name, hall: profileForm.hall, gender: profileForm.gender })
       setEditingProfile(false)
     } finally {
       setProfileSaving(false)
@@ -210,7 +225,7 @@ export default function StudentHome() {
                         </span>
                       </div>
                       <p className="text-xs text-ink/50 mt-2">{formatTime(ride.requestedTime)}</p>
-                      <p className="text-xs text-ink/50 mt-1">Rider: {ride.host} · {ride.hostGender === 'female' ? 'Female' : 'Male'}</p>
+                      <p className="text-xs text-ink/50 mt-1">Rider: {ride.host} · {publicGenderLabel(ride.hostGender)}</p>
                       <button
                         disabled={full || joiningId === ride.id}
                         onClick={() => joinOpenRide(ride)}
@@ -257,7 +272,7 @@ export default function StudentHome() {
             </div>
             <div className="grid grid-cols-2 gap-4 mt-5">
               <div><p className="text-xs text-ink/50">Student ID</p><p className="text-sm text-ink mt-0.5">{user?.studentId || 'Not set'}</p></div>
-              <div><p className="text-xs text-ink/50">Gender</p><p className="text-sm text-ink mt-0.5 capitalize">{user?.gender || 'Not set'}</p></div>
+              <div><p className="text-xs text-ink/50">Gender</p><p className="text-sm text-ink mt-0.5">{genderLabel(displayUser?.gender)}</p></div>
               <div className="col-span-2"><p className="text-xs text-ink/50">Residence</p><p className="text-sm text-ink mt-0.5">{displayUser?.hall || 'Hall not set'}</p></div>
             </div>
           </> : <form onSubmit={saveProfile} className="flex flex-col gap-3">
@@ -271,9 +286,14 @@ export default function StudentHome() {
               <input disabled className="w-full bg-ink/5 border border-lilac-200 rounded-xl px-4 py-3 text-ink/50 mt-1" value={user?.studentId || 'Not set'} />
             </label>
             <label className="text-xs text-ink/60">Gender
-              <input disabled className="w-full bg-ink/5 border border-lilac-200 rounded-xl px-4 py-3 text-ink/50 mt-1 capitalize" value={user?.gender || 'Not set'} />
+              <select required className="w-full bg-lilac-50 border border-lilac-200 rounded-xl px-4 py-3 text-ink mt-1" value={profileForm.gender} onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}>
+                <option value="">Select gender</option>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+                <option value="unknown">Prefer not to say</option>
+              </select>
             </label>
-            <p className="text-xs text-ink/40 -mt-1">Email, student ID and gender are locked. Contact administration to change these.</p>
+            <p className="text-xs text-ink/40 -mt-1">Email and student ID are locked. Contact administration to change these.</p>
             <label className="text-xs text-ink/60">Residence
               <select className="w-full bg-lilac-50 border border-lilac-200 rounded-xl px-4 py-3 text-ink mt-1" value={profileForm.hall} onChange={(e) => setProfileForm({ ...profileForm, hall: e.target.value })}>
                 <option value="">Select your hall</option>
