@@ -3,12 +3,16 @@ import { api } from '../api.js'
 
 const AuthContext = createContext(null)
 
+function readPersistedToken() {
+  return localStorage.getItem('csr_token') || sessionStorage.getItem('csr_token') || ''
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = sessionStorage.getItem('csr_token')
+    const token = readPersistedToken()
     if (!token) {
       setLoading(false)
       return
@@ -17,12 +21,14 @@ export function AuthProvider({ children }) {
       .me()
       .then(({ user }) => setUser(user))
       .catch(() => {
+        localStorage.removeItem('csr_token')
         sessionStorage.removeItem('csr_token')
       })
       .finally(() => setLoading(false))
   }, [])
 
   function persist(token, user) {
+    localStorage.setItem('csr_token', token)
     sessionStorage.setItem('csr_token', token)
     setUser(user)
   }
@@ -47,6 +53,11 @@ export function AuthProvider({ children }) {
     }
   }
 
+  async function updateProfile(nextUser) {
+    setUser(nextUser)
+    return nextUser
+  }
+
   async function driverSignup(payload) {
     try {
       const { token, user } = await api.driverSignup(payload)
@@ -68,13 +79,14 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
+    localStorage.removeItem('csr_token')
     sessionStorage.removeItem('csr_token')
     setUser(null)
   }
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, studentSignup, studentLogin, driverSignup, driverLogin, logout }}
+      value={{ user, loading, studentSignup, studentLogin, updateProfile, driverSignup, driverLogin, logout }}
     >
       {children}
     </AuthContext.Provider>

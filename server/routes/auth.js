@@ -15,11 +15,17 @@ const NID = /^\d{10}$|^\d{13}$|^\d{17}$/
 
 function publicStudent(s) {
   const { password, ...rest } = s
-  return { ...rest, role: 'student' }
+  return { ...rest, role: 'student', wallet: Number(rest.wallet || 0) }
 }
 function publicDriver(d) {
   const { password, ...rest } = d
-  return { ...rest, role: 'driver' }
+  return { ...rest, role: 'driver', wallet: Number(rest.wallet || 0) }
+}
+
+function asMoney(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n <= 0) return 0
+  return Number(n.toFixed(2))
 }
 
 // ---------- STUDENT ----------
@@ -41,11 +47,11 @@ router.post('/student/signup', async (req, res) => {
   }
 
   const db = readDb()
-  const emailLower = email.toLowerCase()
+  const emailLower = (email || '').toLowerCase()
   if (db.students.find((s) => s.email === emailLower)) {
     return res.status(409).json({ message: 'An account with this email already exists.' })
   }
-  if (db.students.find((s) => s.studentId === studentId)) {
+  if (db.students.find((s) => s.studentId === String(studentId))) {
     return res.status(409).json({ message: 'An account with this student ID already exists.' })
   }
 
@@ -54,9 +60,10 @@ router.post('/student/signup', async (req, res) => {
     id: crypto.randomUUID(),
     name: name.trim(),
     email: emailLower,
-    studentId,
+    studentId: String(studentId),
     gender,
     hall: hall || '',
+    wallet: 0,
     password: hashed,
     createdAt: new Date().toISOString(),
   }
@@ -78,6 +85,53 @@ router.post('/student/login', async (req, res) => {
 
   const token = signToken({ id: student.id, role: 'student' })
   res.json({ token, user: publicStudent(student) })
+})
+
+router.patch('/profile', requireAuth(), async (req, res) => {
+  const { name, gender, hall } = req.body || {}
+  const db = readDb()
+
+  if (req.user.role === 'student') {
+    const student = db.students.find((s) => s.id === req.user.id)
+    if (!student) return res.status(404).json({ message: 'Account not found.' })
+    student.name = name?.trim() || student.name
+    student.gender = GENDERS.includes(gender) ? gender : student.gender
+    student.hall = hall || student.hall || ''
+    writeDb(db)
+    return res.json({ user: publicStudent(student) })
+  }
+
+  const driver = db.drivers.find((d) => d.id === req.user.id)
+  if (!driver) return res.status(404).json({ message: 'Account not found.' })
+  driver.name = name?.trim() || driver.name
+  driver.rickshaw = req.body?.rickshaw || driver.rickshaw || ''
+  writeDb(db)
+  res.json({ user: publicDriver(driver) })
+})
+
+router.get('/wallet', requireAuth(), (req, res) => {
+  const db = readDb()
+  if (req.user.role === 'student') {
+    const student = db.students.find((s) => s.id === req.user.id)
+    if (!student) return res.status(404).json({ message: 'Account not found.' })
+    return res.json({ wallet: Number(student.wallet || 0) })
+  }
+  const driver = db.drivers.find((d) => d.id === req.user.id)
+  if (!driver) return res.status(404).json({ message: 'Account not found.' })
+  res.json({ wallet: Number(driver.wallet || 0) })
+})
+
+router.post('/wallet/topup', requireAuth('student'), (req, res) => {
+  const amount = asMoney(req.body?.amount)
+  if (!amount) return res.status(400).json({ message: 'Enter a valid top-up amount.' })
+
+  const db = readDb()
+  const student = db.students.find((s) => s.id === req.user.id)
+  if (!student) return res.status(404).json({ message: 'Account not found.' })
+
+  student.wallet = Number(student.wallet || 0) + amount
+  writeDb(db)
+  res.json({ wallet: Number(student.wallet), message: 'Wallet updated successfully.' })
 })
 
 // ---------- DRIVER ----------
@@ -109,6 +163,7 @@ router.post('/driver/signup', async (req, res) => {
     identifier: idLower,
     nid: nid.trim(),
     rickshaw: rickshaw || '',
+    wallet: 0,
     verified: false,
     password: hashed,
     createdAt: new Date().toISOString(),
