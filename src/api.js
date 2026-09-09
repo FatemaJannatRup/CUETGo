@@ -1,5 +1,5 @@
 const API_ORIGIN = (import.meta.env.VITE_API_URL?.trim() || (import.meta.env.DEV ? 'http://localhost:5000' : '')).replace(/\/+$/, '')
-const API_BASE = `${API_ORIGIN}/api`
+const API_BASE = API_ORIGIN ? `${API_ORIGIN}/api` : '/api'
 
 function getToken() {
   return localStorage.getItem('csr_token') || sessionStorage.getItem('csr_token')
@@ -12,13 +12,18 @@ async function request(path, { method = 'GET', body, auth = false } = {}) {
     if (token) headers.Authorization = `Bearer ${token}`
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const url = `${API_BASE}${path}`
+
+  const res = await fetch(url, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   })
 
   const data = await res.json().catch(() => ({}))
+  if (!API_ORIGIN && !import.meta.env.DEV && res.status === 404) {
+    throw new Error('Backend API is not configured. Set VITE_API_URL to your backend URL.')
+  }
   if (!res.ok) {
     throw new Error(data.message || 'Something went wrong. Please try again.')
   }
