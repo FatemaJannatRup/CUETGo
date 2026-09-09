@@ -1,6 +1,10 @@
 const API_ORIGIN = (import.meta.env.VITE_API_URL?.trim() || (import.meta.env.DEV ? 'http://localhost:5000' : '')).replace(/\/+$/, '')
 const API_BASE = API_ORIGIN ? `${API_ORIGIN}/api` : '/api'
 
+function normalizePath(path) {
+  return path.startsWith('/api') ? path : `/api${path}`
+}
+
 function getToken() {
   return localStorage.getItem('csr_token') || sessionStorage.getItem('csr_token')
 }
@@ -12,7 +16,7 @@ async function request(path, { method = 'GET', body, auth = false } = {}) {
     if (token) headers.Authorization = `Bearer ${token}`
   }
 
-  const url = `${API_BASE}${path}`
+  const url = normalizePath(`${API_BASE}${path}`)
 
   const res = await fetch(url, {
     method,
