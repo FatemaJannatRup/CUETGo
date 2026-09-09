@@ -46,7 +46,7 @@ router.post('/student/signup', async (req, res) => {
     return res.status(400).json({ message: 'Password must be at least 6 characters.' })
   }
 
-  const db = readDb()
+  const db = await readDb()
   const emailLower = (email || '').toLowerCase()
   if (db.students.find((s) => s.email === emailLower)) {
     return res.status(409).json({ message: 'An account with this email already exists.' })
@@ -68,7 +68,7 @@ router.post('/student/signup', async (req, res) => {
     createdAt: new Date().toISOString(),
   }
   db.students.push(student)
-  writeDb(db)
+  await writeDb(db)
 
   const token = signToken({ id: student.id, role: 'student' })
   res.json({ token, user: publicStudent(student) })
@@ -76,7 +76,7 @@ router.post('/student/signup', async (req, res) => {
 
 router.post('/student/login', async (req, res) => {
   const { email, password } = req.body || {}
-  const db = readDb()
+  const db = await readDb()
   const student = db.students.find((s) => s.email === (email || '').toLowerCase())
   if (!student) return res.status(401).json({ message: 'No account found with this email.' })
 
@@ -89,7 +89,7 @@ router.post('/student/login', async (req, res) => {
 
 router.patch('/profile', requireAuth(), async (req, res) => {
   const { name, gender, hall } = req.body || {}
-  const db = readDb()
+  const db = await readDb()
 
   if (req.user.role === 'student') {
     const student = db.students.find((s) => s.id === req.user.id)
@@ -97,7 +97,7 @@ router.patch('/profile', requireAuth(), async (req, res) => {
     student.name = name?.trim() || student.name
     student.gender = GENDERS.includes(gender) ? gender : student.gender
     student.hall = hall || student.hall || ''
-    writeDb(db)
+    await writeDb(db)
     return res.json({ user: publicStudent(student) })
   }
 
@@ -105,12 +105,12 @@ router.patch('/profile', requireAuth(), async (req, res) => {
   if (!driver) return res.status(404).json({ message: 'Account not found.' })
   driver.name = name?.trim() || driver.name
   driver.rickshaw = req.body?.rickshaw || driver.rickshaw || ''
-  writeDb(db)
+  await writeDb(db)
   res.json({ user: publicDriver(driver) })
 })
 
-router.get('/wallet', requireAuth(), (req, res) => {
-  const db = readDb()
+router.get('/wallet', requireAuth(), async (req, res) => {
+  const db = await readDb()
   if (req.user.role === 'student') {
     const student = db.students.find((s) => s.id === req.user.id)
     if (!student) return res.status(404).json({ message: 'Account not found.' })
@@ -121,16 +121,16 @@ router.get('/wallet', requireAuth(), (req, res) => {
   res.json({ wallet: Number(driver.wallet || 0) })
 })
 
-router.post('/wallet/topup', requireAuth('student'), (req, res) => {
+router.post('/wallet/topup', requireAuth('student'), async (req, res) => {
   const amount = asMoney(req.body?.amount)
   if (!amount) return res.status(400).json({ message: 'Enter a valid top-up amount.' })
 
-  const db = readDb()
+  const db = await readDb()
   const student = db.students.find((s) => s.id === req.user.id)
   if (!student) return res.status(404).json({ message: 'Account not found.' })
 
   student.wallet = Number(student.wallet || 0) + amount
-  writeDb(db)
+  await writeDb(db)
   res.json({ wallet: Number(student.wallet), message: 'Wallet updated successfully.' })
 })
 
@@ -151,7 +151,7 @@ router.post('/driver/signup', async (req, res) => {
     return res.status(400).json({ message: 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে' })
   }
 
-  const db = readDb()
+  const db = await readDb()
   if (db.drivers.find((d) => d.identifier === idLower)) {
     return res.status(409).json({ message: 'এই তথ্য দিয়ে ইতিমধ্যে একটি অ্যাকাউন্ট আছে।' })
   }
@@ -169,7 +169,7 @@ router.post('/driver/signup', async (req, res) => {
     createdAt: new Date().toISOString(),
   }
   db.drivers.push(driver)
-  writeDb(db)
+  await writeDb(db)
 
   const token = signToken({ id: driver.id, role: 'driver' })
   res.json({ token, user: publicDriver(driver) })
@@ -177,7 +177,7 @@ router.post('/driver/signup', async (req, res) => {
 
 router.post('/driver/login', async (req, res) => {
   const { identifier, password } = req.body || {}
-  const db = readDb()
+  const db = await readDb()
   const driver = db.drivers.find((d) => d.identifier === (identifier || '').trim().toLowerCase())
   if (!driver) return res.status(401).json({ message: 'এই তথ্য দিয়ে কোনো অ্যাকাউন্ট পাওয়া যায়নি।' })
 
@@ -190,8 +190,8 @@ router.post('/driver/login', async (req, res) => {
 
 // ---------- SESSION ----------
 
-router.get('/me', requireAuth(), (req, res) => {
-  const db = readDb()
+router.get('/me', requireAuth(), async (req, res) => {
+  const db = await readDb()
   if (req.user.role === 'student') {
     const student = db.students.find((s) => s.id === req.user.id)
     if (!student) return res.status(404).json({ message: 'Account not found.' })
