@@ -1,4 +1,5 @@
-const API_BASE = `${import.meta.env.VITE_API_URL}/api`
+const API_ORIGIN = (import.meta.env.VITE_API_URL?.trim() || (import.meta.env.DEV ? 'http://localhost:5000' : '')).replace(/\/+$/, '')
+const API_BASE = `${API_ORIGIN}/api`
 function getToken() {
   return sessionStorage.getItem('csr_token')
 }
