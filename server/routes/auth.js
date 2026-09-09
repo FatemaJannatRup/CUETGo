@@ -7,6 +7,8 @@ import { signToken, requireAuth } from '../middleware/auth.js'
 const router = Router()
 
 const CUET_EMAIL = /^u\d{7}@student\.cuet\.ac\.bd$/i
+const STUDENT_ID = /^\d{7}$/
+const GENDERS = ['male', 'female', 'unknown']
 const GMAIL = /^[a-zA-Z0-9._%+-]+@gmail\.com$/
 const PHONE = /^01[3-9]\d{8}$/
 const NID = /^\d{10}$|^\d{13}$|^\d{17}$/
@@ -23,10 +25,16 @@ function publicDriver(d) {
 // ---------- STUDENT ----------
 
 router.post('/student/signup', async (req, res) => {
-  const { name, email, hall, password } = req.body || {}
+  const { name, email, studentId, gender, hall, password } = req.body || {}
   if (!name || !name.trim()) return res.status(400).json({ message: 'Enter your full name.' })
   if (!CUET_EMAIL.test(email || '')) {
     return res.status(400).json({ message: 'Use your CUET student email, e.g. u2204064@student.cuet.ac.bd' })
+  }
+  if (!STUDENT_ID.test(studentId || '')) {
+    return res.status(400).json({ message: 'Enter your 7-digit student ID, e.g. 2204064' })
+  }
+  if (!GENDERS.includes(gender)) {
+    return res.status(400).json({ message: 'Select your gender.' })
   }
   if (!password || password.length < 6) {
     return res.status(400).json({ message: 'Password must be at least 6 characters.' })
@@ -37,12 +45,17 @@ router.post('/student/signup', async (req, res) => {
   if (db.students.find((s) => s.email === emailLower)) {
     return res.status(409).json({ message: 'An account with this email already exists.' })
   }
+  if (db.students.find((s) => s.studentId === studentId)) {
+    return res.status(409).json({ message: 'An account with this student ID already exists.' })
+  }
 
   const hashed = await bcrypt.hash(password, 10)
   const student = {
     id: crypto.randomUUID(),
     name: name.trim(),
     email: emailLower,
+    studentId,
+    gender,
     hall: hall || '',
     password: hashed,
     createdAt: new Date().toISOString(),
