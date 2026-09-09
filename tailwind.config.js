@@ -19,7 +19,7 @@ export default {
           700: "#0a2d63",
           800: "#071d3d",
         },
-        ink: "#101827",
+        ink: "#111827",
         panel: "#081a2b",
         surface: "#0d1f35",
       },

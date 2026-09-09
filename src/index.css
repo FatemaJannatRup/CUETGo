@@ -29,11 +29,18 @@ html, body {
     radial-gradient(circle at top, rgba(30, 106, 214, 0.38), transparent 30%),
     linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 32%, #030b15 100%);
   font-family: "Calibri", "Segoe UI", sans-serif;
-  color: var(--text);
+  color: #111827;
 }
 
 body {
   letter-spacing: 0.01em;
+}
+
+#root,
+.phone-screen,
+.screen-scroll,
+.screen-scroll * {
+  color: #111827 !important;
 }
 
 button, input, select, textarea {
@@ -43,6 +50,11 @@ button, input, select, textarea {
 
 button {
   cursor: pointer;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(17, 24, 39, 0.6) !important;
 }
 
 .bn {
