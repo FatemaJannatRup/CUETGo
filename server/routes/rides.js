@@ -28,11 +28,46 @@ router.get('/routes', (req, res) => {
   res.json({ locations: LOCATIONS, halls: HALLS })
 })
 
+router.get('/open', requireAuth('student'), (req, res) => {
+  const db = readDb()
+  const rides = db.rides
+    .filter((ride) => ride.status === 'pending' && ride.studentId !== req.user.id &&
+      !(ride.participantIds || []).includes(req.user.id) &&
+      (ride.passengerCount || ride.seats || 1) < 2 &&
+      new Date(ride.requestedTime || ride.createdAt).getTime() > Date.now())
+    .map((ride) => ({
+      id: ride.id, from: ride.from, to: ride.to,
+      requestedTime: ride.requestedTime || ride.createdAt,
+      seatsTotal: 2, seatsTaken: ride.passengerCount || ride.seats || 1,
+      host: studentName(db, ride.studentId),
+      hostGender: db.students.find((student) => student.id === ride.studentId)?.gender || 'unknown',
+    }))
+  res.json({ rides })
+})
+
+router.post('/:id/join', requireAuth('student'), (req, res) => {
+  const db = readDb()
+  const ride = db.rides.find((item) => item.id === req.params.id)
+  if (!ride) return res.status(404).json({ message: 'Ride not found.' })
+  if (ride.studentId === req.user.id || (ride.participantIds || []).includes(req.user.id)) {
+    return res.status(409).json({ message: 'You are already on this ride.' })
+  }
+  if (ride.status !== 'pending' || (ride.passengerCount || ride.seats || 1) >= 2 ||
+    new Date(ride.requestedTime || ride.createdAt).getTime() <= Date.now()) {
+    return res.status(409).json({ message: 'This ride is no longer available.' })
+  }
+  ride.participantIds = [...(ride.participantIds || []), req.user.id]
+  ride.passengerCount = (ride.passengerCount || ride.seats || 1) + 1
+  writeDb(db)
+  res.json({ ride })
+})
+
 // Student creates a ride request, then asks Gemini (or fallback) for matches
 router.post('/request', requireAuth('student'), async (req, res) => {
   const { from, to, requestedTime, seats = 1 } = req.body || {}
   if (!LOCATIONS.includes(from) || !LOCATIONS.includes(to) || from === to) return res.status(400).json({ message: 'Choose two different CUET locations.' })
   if (!requestedTime || Number.isNaN(new Date(requestedTime).getTime())) return res.status(400).json({ message: 'Choose a pickup time.' })
+  if (new Date(requestedTime).getTime() <= Date.now()) return res.status(400).json({ message: 'That pickup time has already passed. Choose a time at least a few minutes from now.' })
   if (![1, 2].includes(Number(seats))) return res.status(400).json({ message: 'A rickshaw has only 1 or 2 seats.' })
 
   const db = readDb()
@@ -50,12 +85,16 @@ router.post('/request', requireAuth('student'), async (req, res) => {
     matchedRideIds: [],
     createdAt: new Date().toISOString(),
   }
-  db.rides.push(ride)
 
   const others = db.rides.filter((r) => r.status === 'pending' && r.id !== ride.id && r.from === from && r.to === to && Math.abs(new Date(r.requestedTime || r.createdAt) - new Date(ride.requestedTime)) < 30 * 60 * 1000 && (r.passengerCount || r.seats || 1) + ride.passengerCount <= 2)
   const matches = await findMatches(ride, others)
-  ride.matchedRideIds = matches.map((m) => m.rideId)
-  writeDb(db)
+  // Matching may await a remote API; reload so concurrent bookings and joins survive.
+  const latest = readDb()
+  ride.matchedRideIds = matches.map((m) => m.rideId).filter((id) =>
+    latest.rides.some((r) => r.id === id && r.status === 'pending' &&
+      (r.passengerCount || r.seats || 1) + ride.passengerCount <= 2))
+  latest.rides.push(ride)
+  writeDb(latest)
 
   const matchedRiders = ride.matchedRideIds
     .map((id) => db.rides.find((r) => r.id === id))
@@ -68,7 +107,7 @@ router.post('/request', requireAuth('student'), async (req, res) => {
 router.get('/mine', requireAuth('student'), (req, res) => {
   const db = readDb()
   const mine = db.rides
-    .filter((r) => r.studentId === req.user.id)
+    .filter((r) => r.studentId === req.user.id || (r.participantIds || []).includes(req.user.id))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
   res.json({ rides: mine })
 })

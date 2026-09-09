@@ -4,14 +4,6 @@ import { api } from '../api.js'
 
 const formatTime = (value) => new Date(value).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })
 
-// Temporary mock data for the "available ride slots" view until the real
-// endpoint (e.g. api.openRides()) is wired up.
-const MOCK_OPEN_RIDES = [
-  { id: 'mock-1', from: 'Shaheed Minar Hall', to: 'Academic Building', requestedTime: new Date(Date.now() + 30 * 60000).toISOString(), seatsTotal: 2, seatsTaken: 1, host: 'Nusrat', hostGender: 'female' },
-  { id: 'mock-2', from: 'Library', to: 'Cafeteria', requestedTime: new Date(Date.now() + 60 * 60000).toISOString(), seatsTotal: 2, seatsTaken: 1, host: 'Tanvir', hostGender: 'male' },
-  { id: 'mock-3', from: 'Central Field', to: 'CSE Building', requestedTime: new Date(Date.now() + 90 * 60000).toISOString(), seatsTotal: 2, seatsTaken: 1, host: 'Priya', hostGender: 'female' },
-]
-
 const HALLS = ['Muktijoddha Hall', 'Shahid Mohammad Shah Hall', 'Dr. Qudrat-E-Khuda Hall', 'Kabi Kazi Nazrul Islam Hall', 'Shaheed Tareq Huda Hall', 'Shaheed Abu Sayed Hall', 'Sufia Kamal Hall', 'Begum Shamsunnahar Khan Hall', 'Tapashi Rabeya Hall']
 
 function genderLabel(g) {
@@ -40,7 +32,8 @@ export default function StudentHome() {
   const [homeView, setHomeView] = useState('menu') // 'menu' | 'request' | 'slots' | 'pending'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [openRides, setOpenRides] = useState(MOCK_OPEN_RIDES)
+  const [syncError, setSyncError] = useState('')
+  const [openRides, setOpenRides] = useState([])
   const [joiningId, setJoiningId] = useState(null)
   const [editingProfile, setEditingProfile] = useState(false)
   const [profileForm, setProfileForm] = useState({ name: '', hall: '', gender: '' })
@@ -68,32 +61,35 @@ export default function StudentHome() {
     }
   }
 
-  function refresh() {
-    api.myRides().then(({ rides: next }) => {
-      setRides(next)
-      setActiveRide(next.find((ride) => ['pending', 'accepted'].includes(ride.status)) || null)
-    }).catch(() => {})
+  async function refresh() {
+    try {
+      const [mine, available] = await Promise.all([api.myRides(), api.openRides()])
+      setRides(mine.rides)
+      setActiveRide(mine.rides.find((ride) => ['pending', 'accepted'].includes(ride.status)) || null)
+      setOpenRides(available.rides)
+      setSyncError('')
+    } catch (e) {
+      setSyncError('Ride updates unavailable: ' + e.message)
+    }
   }
 
   useEffect(() => {
-    api.routes().then(({ locations: next }) => setLocations(next)).catch(() => {})
+    api.routes().then(({ locations: next }) => setLocations(next)).catch((e) => setSyncError(e.message))
     refresh()
-    // Once a real endpoint exists, swap this for:
-    // api.openRides().then(({ rides: next }) => setOpenRides(next)).catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    if (!activeRide) return undefined
     const interval = setInterval(refresh, 4000)
     return () => clearInterval(interval)
-  }, [activeRide?.id, activeRide?.status])
+  }, [])
 
   async function requestRide(event) {
     event.preventDefault()
     setBusy(true)
     setError('')
     try {
-      const result = await api.requestRide(form)
+      const pickupTime = new Date(form.requestedTime)
+      if (Number.isNaN(pickupTime.getTime()) || pickupTime.getTime() <= Date.now()) {
+        throw new Error('Choose a pickup time at least a few minutes from now.')
+      }
+      const result = await api.requestRide({ ...form, requestedTime: pickupTime.toISOString() })
       setActiveRide(result.ride)
       setMatches(result.matches)
       refresh()
@@ -108,14 +104,25 @@ export default function StudentHome() {
   async function joinOpenRide(ride) {
     setJoiningId(ride.id)
     try {
-      // Placeholder for the real call, e.g. await api.joinRide(ride.id)
-      setOpenRides((prev) => prev.map((r) => r.id === ride.id ? { ...r, seatsTaken: r.seatsTaken + 1 } : r))
+      setError('')
+      await api.joinRide(ride.id)
+      await refresh()
+      setTab('home')
+      setHomeView('pending')
+    } catch (e) {
+      setError(e.message)
+      await refresh()
     } finally {
       setJoiningId(null)
     }
   }
 
-  const notifications = rides.filter((ride) => ride.status !== 'pending')
+  const notifications = [
+    ...openRides.map((ride) => ({ ...ride, message: ride.host + ' booked a ride with a seat available.', available: true })),
+    ...rides.filter((ride) => ride.status !== 'pending' || (ride.participantIds || []).length > 0).map((ride) => ({
+      ...ride, message: ride.status === 'accepted' ? 'Your driver accepted the ride.' : ride.status === 'completed' ? 'Your ride is complete.' : ride.status === 'pending' ? 'Your shared ride now has another passenger.' : 'Your ride is ' + ride.status + '.',
+    })),
+  ]
   const pendingRides = rides.filter((ride) => ride.status === 'pending')
   const pastRides = rides.filter((ride) => ['completed', 'cancelled'].includes(ride.status))
   const nav = [['home', 'Home'], ['history', 'History'], ['notifications', `Alerts${notifications.length ? ` (${notifications.length})` : ''}`], ['profile', 'Profile']]
@@ -130,6 +137,8 @@ export default function StudentHome() {
       <p className="text-white/70 text-xs mt-4">CUET campus rides, on your time</p>
     </header>
     <main className="flex-1 px-6 py-6 overflow-y-auto">
+      {syncError && <p role="alert" className="text-rose-500 text-sm mb-4">{syncError}</p>}
+      {error && <p role="alert" className="text-rose-500 text-sm mb-4">{error}</p>}
       {tab === 'home' && <>
 
         {/* Menu: two icon-tile entry buttons */}
@@ -209,9 +218,10 @@ export default function StudentHome() {
         {/* Available ride slots */}
         {homeView === 'slots' && <div className="bg-white rounded-xl2 p-5 shadow-soft border border-lilac-100">
           <BackButton />
-          <p className="font-semibold text-ink mb-4">Available ride slots</p>
+          <p className="font-semibold text-ink mb-2">Available ride slots</p>
+          <p className="text-xs text-ink/60 mb-4">Other students' pending rides with a future pickup time and a free seat appear here. Your own bookings are under Pending Requests. Updates every 4 seconds.</p>
           {openRides.length === 0
-            ? <p className="text-sm text-ink/50">No open rides right now — check back soon.</p>
+            ? <p className="text-sm text-ink/50">No eligible rides right now. To share a ride, another student must book 1 seat for a future pickup time. Bookings for 2 seats are full.</p>
             : <div className="flex flex-col gap-3">
                 {openRides.map((ride) => {
                   const seatsLeft = ride.seatsTotal - ride.seatsTaken
@@ -258,7 +268,7 @@ export default function StudentHome() {
 
       </>}
       {tab === 'history' && <section><h2 className="font-display text-2xl text-ink mb-4">Ride history</h2>{pastRides.length === 0 ? <p className="text-sm text-ink/50">Your completed rides will appear here.</p> : pastRides.map((ride) => <div key={ride.id} className="bg-white rounded-xl2 p-4 mb-3 border border-lilac-100"><div className="flex justify-between"><p className="text-sm font-medium text-ink">{ride.from} → {ride.to}</p><span className="text-xs capitalize text-lilac-600">{ride.status}</span></div><p className="text-xs text-ink/50 mt-2">{formatTime(ride.requestedTime || ride.createdAt)} · {ride.seats || 1} seat{(ride.seats || 1) > 1 ? 's' : ''}</p></div>)}</section>}
-      {tab === 'notifications' && <section><h2 className="font-display text-2xl text-ink mb-4">Notifications</h2>{notifications.length === 0 ? <p className="text-sm text-ink/50">No notifications yet.</p> : notifications.map((ride) => <div key={ride.id} className="bg-white rounded-xl2 p-4 mb-3 border border-lilac-100"><p className="text-sm text-ink">{ride.status === 'accepted' ? 'Your driver accepted the ride.' : 'Your ride is complete.'}</p><p className="text-xs text-ink/50 mt-2">{ride.from} → {ride.to}</p></div>)}</section>}
+      {tab === 'notifications' && <section><h2 className="font-display text-2xl text-ink mb-4">Notifications</h2>{notifications.length === 0 ? <p className="text-sm text-ink/50">No notifications yet.</p> : notifications.map((ride) => <div key={ride.id} className="bg-white rounded-xl2 p-4 mb-3 border border-lilac-100"><p className="text-sm text-ink">{ride.message}</p><p className="text-xs text-ink/50 mt-2">{ride.from} → {ride.to}</p>{ride.available && <button onClick={() => { setTab('home'); setHomeView('slots') }} className="text-sm text-lilac-600 mt-2">View available ride</button>}</div>)}</section>}
       {tab === 'profile' && <section>
         <h2 className="font-display text-2xl text-ink mb-4">Profile</h2>
         <div className="bg-white rounded-xl2 p-5 border border-lilac-100">

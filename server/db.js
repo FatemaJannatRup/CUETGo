@@ -6,6 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DB_PATH = path.join(__dirname, 'data', 'db.json')
 
 function ensureDb() {
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
   if (!fs.existsSync(DB_PATH)) {
     const initial = { students: [], drivers: [], rides: [] }
     fs.writeFileSync(DB_PATH, JSON.stringify(initial, null, 2))

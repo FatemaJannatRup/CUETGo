@@ -1,7 +1,7 @@
 const API_BASE = 'http://localhost:5000/api'
 
 function getToken() {
-  return localStorage.getItem('csr_token')
+  return sessionStorage.getItem('csr_token')
 }
 
 async function request(path, { method = 'GET', body, auth = false } = {}) {
@@ -32,6 +32,8 @@ export const api = {
   routes: () => request('/rides/routes'),
   requestRide: (payload) => request('/rides/request', { method: 'POST', body: payload, auth: true }),
   myRides: () => request('/rides/mine', { auth: true }),
+  openRides: () => request('/rides/open', { auth: true }),
+  joinRide: (id) => request(`/rides/${id}/join`, { method: 'POST', auth: true }),
   pendingGroups: () => request('/rides/pending', { auth: true }),
   acceptRide: (rideIds) => request('/rides/accept', { method: 'POST', body: { rideIds }, auth: true }),
   completeRide: (id) => request(`/rides/${id}/complete`, { method: 'POST', auth: true }),

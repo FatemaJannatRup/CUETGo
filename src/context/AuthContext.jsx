@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('csr_token')
+    const token = sessionStorage.getItem('csr_token')
     if (!token) {
       setLoading(false)
       return
@@ -17,13 +17,13 @@ export function AuthProvider({ children }) {
       .me()
       .then(({ user }) => setUser(user))
       .catch(() => {
-        localStorage.removeItem('csr_token')
+        sessionStorage.removeItem('csr_token')
       })
       .finally(() => setLoading(false))
   }, [])
 
   function persist(token, user) {
-    localStorage.setItem('csr_token', token)
+    sessionStorage.setItem('csr_token', token)
     setUser(user)
   }
 
@@ -68,7 +68,7 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
-    localStorage.removeItem('csr_token')
+    sessionStorage.removeItem('csr_token')
     setUser(null)
   }
 
