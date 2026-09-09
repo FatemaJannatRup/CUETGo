@@ -1,4 +1,4 @@
-const API_ORIGIN = (import.meta.env.VITE_API_URL?.trim() || (import.meta.env.DEV ? 'http://localhost:5000' : '')).replace(/\/+$/, '')
+const API_ORIGIN = (import.meta.env.VITE_API_URL?.trim() || (import.meta.env.DEV ? 'http://localhost:5001' : '')).replace(/\/+$/, '')
 const API_BASE = API_ORIGIN ? `${API_ORIGIN}/api` : '/api'
 
 function normalizePath(path) {

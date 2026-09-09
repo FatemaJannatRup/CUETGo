@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js",
+    "start": "cross-env PORT=5001 node index.js",
+    "dev": "cross-env PORT=5001 node --watch index.js",
     "test": "node --test"
   },
   "dependencies": {
@@ -16,5 +16,8 @@
     "firebase-admin": "^12.4.0",
     "jsonwebtoken": "^9.0.2",
     "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "cross-env": "^10.0.0"
   }
 }

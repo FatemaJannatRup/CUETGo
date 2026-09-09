@@ -13,7 +13,22 @@ app.use(
     credentials: true,
   })
 )
-app.use(express.json())
+app.options('*', cors())
+
+app.use((req, res, next) => {
+  const contentType = req.headers['content-type'] || ''
+  if (req.method === 'GET' || req.method === 'OPTIONS' || !contentType.includes('application/json')) {
+    return next()
+  }
+  return express.json()(req, res, next)
+})
+
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && 'body' in err) {
+    return res.status(400).json({ message: 'Invalid JSON payload.' })
+  }
+  return next(err)
+})
 
 app.use('/api/auth', authRoutes)
 app.use('/api/rides', rideRoutes)
@@ -26,7 +41,7 @@ app.get('/api/health', (req, res) => {
   })
 })
 
-const PORT = process.env.PORT || 5000
+const PORT = Number(process.env.PORT || 5000)
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`CUET Shared Ride backend running on port ${PORT}`)
